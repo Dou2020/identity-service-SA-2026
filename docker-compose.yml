@@ -1,0 +1,78 @@
+# identity-service y su base. Proyecto Compose propio: se levanta, actualiza o borra sin tocar a
+# los demás servicios. Se usa con  ./stack.sh up identity-service  (README, "Levantar en
+# desarrollo"). Redis y RabbitMQ están en el proyecto infra.
+#
+# identity-db solo está en la red privada del proyecto, así que ningún otro servicio puede
+# resolverla. identity-service está además en "transporte", donde lo encuentran el gateway y
+# notification, y donde están Redis y RabbitMQ. Los puertos solo se publican en 127.0.0.1, para
+# psql, DBeaver y Swagger desde el host.
+#
+# Un servicio nuevo copia este archivo: cambia el nombre, el puerto, su base y sus variables, y
+# quita Redis y JWT (solo identity y el gateway los usan).
+
+name: identity-service
+
+services:
+  identity-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: identity_db
+      POSTGRES_USER: ${IDENTITY_DB_USER}
+      POSTGRES_PASSWORD: ${IDENTITY_DB_PASSWORD}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - identity-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    mem_limit: 256m
+    restart: unless-stopped
+
+  identity-service:
+    build: .
+    ports:
+      - "127.0.0.1:8081:8081"
+    environment:
+      DB_HOST: identity-db
+      DB_PORT: "5432"
+      DB_USER: ${IDENTITY_DB_USER}
+      DB_PASSWORD: ${IDENTITY_DB_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET en identity-service/.env (openssl rand -base64 32)}
+      # Primer SYS_ADMIN; sin ellos identity arranca igual, pero nadie puede administrar.
+      ADMIN_CORREO: ${ADMIN_CORREO:-}
+      ADMIN_CONTRASENA: ${ADMIN_CONTRASENA:-}
+      # El heap se calcula sobre el mem_limit. Recién arrancado, sin carga, identity ocupa ~410 MB,
+      # y más de la mitad está fuera del heap (metaspace, code cache, hilos). Con 512 MB y heap al
+      # 60-75 % una carga puede pasar el límite, y ahí el kernel mata el contenedor. 768 MB con
+      # heap al 50 % (384 MB) deja margen.
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=50
+    # Solo su base: Redis y RabbitMQ son de otro proyecto. Si no están listos, Spring AMQP
+    # reintenta la conexión y el healthcheck queda en rojo hasta que lleguen.
+    depends_on:
+      identity-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8081/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+    mem_limit: 768m
+    networks: [default, transporte]
+    restart: unless-stopped
+
+networks:
+  transporte:
+    external: true
+
+volumes:
+  identity-db-data:

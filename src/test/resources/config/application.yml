@@ -1,0 +1,13 @@
+# Solo para las pruebas. Spring Boot carga classpath:/config/application.yml además del
+# application.yml principal (y con más prioridad), así que esto solo agrega o sobrescribe.
+jwt:
+  secreto: Vh93zEp66lBf5j74T1YLv8HjBVnX+Kp+4P+fTSOoBcY=
+
+identity:
+  admin-inicial:
+    correo: admin@prueba.gt
+    contrasena: Admin12345
+
+mensajeria:
+  relay:
+    intervalo: 200

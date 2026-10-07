@@ -1,0 +1,77 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: identity-service
+  datasource:
+    # Dentro del compose: identity-db:5432. Con mvn desde el host: localhost:5433,
+    # el puerto publicado (el 5432 del host suele ser un postgres local).
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/identity_db
+    username: ${DB_USER:identity_svc}
+    password: ${DB_PASSWORD:identity_svc}
+  jpa:
+    # El esquema lo define Flyway; Hibernate solo verifica que las entidades coincidan.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  web:
+    # Locale fijo: los mensajes de Bean Validation salen en español sin depender
+    # del Accept-Language del cliente.
+    locale: es
+    locale-resolver: fixed
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redis_dev}
+      # Si Redis no responde, revocar o emitir un enlace responde 503 en vez de colgar el hilo.
+      timeout: 1s
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:transporte}
+    password: ${RABBITMQ_PASSWORD:transporte}
+    # El relay espera la confirmación del broker antes de marcar la outbox como publicada.
+    publisher-confirm-type: simple
+    listener:
+      simple:
+        # Agotados los reintentos, el mensaje va a la DLQ (dead-letter de la cola), no
+        # de vuelta a la cola.
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-attempts: 5          # 1 intento + 4 reintentos: 1 s, 2 s, 4 s, 8 s
+          initial-interval: 1s
+          multiplier: 2
+          max-interval: 8s
+
+# Sin valor por defecto: EmisorJwt falla al arrancar si falta, nunca firma con un
+# secreto conocido. Es Base64 y debe dar al menos 32 bytes (HS256).
+jwt:
+  secreto: ${JWT_SECRET}
+  duracion: 8h
+
+identity:
+  enlaces:
+    bienvenida: 72h
+    recuperacion: 30m
+  # Primer SYS_ADMIN: se crea al arrancar si no existe ninguno (AdministradorInicial).
+  admin-inicial:
+    correo: ${ADMIN_CORREO:}
+    contrasena: ${ADMIN_CONTRASENA:}
+    nombre: ${ADMIN_NOMBRE:Administrador del sistema}
+
+mensajeria:
+  relay:
+    # Milisegundos entre pasadas del relay de la outbox.
+    intervalo: 1000
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  pattern:
+    # El X-Correlation-Id (CorrelationIdFilter) en cada línea, para seguir un flujo entre servicios.
+    level: "%5p [%X{correlationId:-}]"
