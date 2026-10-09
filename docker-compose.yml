@@ -21,6 +21,10 @@ services:
       POSTGRES_PASSWORD: ${IDENTITY_DB_PASSWORD}
     ports:
       - "127.0.0.1:5433:5432"
+
+      # Use este puerto para levantarlo localmente, con el que estaba definido, me dio problema
+      #ports:
+      #- "127.0.0.1:5433:5432"
     volumes:
       - identity-db-data:/var/lib/postgresql/data
     healthcheck:
