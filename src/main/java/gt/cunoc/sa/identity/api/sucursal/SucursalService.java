@@ -9,18 +9,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import gt.cunoc.sa.identity.api.error.ErrorDeNegocio;
-import gt.cunoc.sa.identity.api.perfil.PerfilRepository;
 import gt.cunoc.sa.identity.api.sucursal.dto.CrearSucursalRequest;
-import gt.cunoc.sa.identity.api.sucursal.dto.CrearSucursalRequest.NuevoAdministrador;
 import gt.cunoc.sa.identity.api.sucursal.dto.DatosSucursalRequest;
-import gt.cunoc.sa.identity.api.sucursal.dto.SucursalCreadaResponse;
 import gt.cunoc.sa.identity.api.sucursal.dto.SucursalResponse;
-import gt.cunoc.sa.identity.api.usuario.dto.UsuarioResponse;
-import gt.cunoc.sa.identity.application.AltaDeCuentas;
-import gt.cunoc.sa.identity.application.AltaDeCuentas.NuevaCuenta;
-import gt.cunoc.sa.identity.domain.Rol;
 import gt.cunoc.sa.identity.domain.SucursalEntity;
-import gt.cunoc.sa.identity.domain.UsuarioEntity;
 import gt.cunoc.sa.identity.infrastructure.messaging.Outbox;
 import gt.cunoc.sa.identity.infrastructure.messaging.eventos.SucursalGuardada;
 import gt.cunoc.sa.identity.infrastructure.messaging.eventos.TiposEvento;
@@ -33,15 +25,10 @@ import gt.cunoc.sa.identity.infrastructure.messaging.eventos.TiposEvento;
 public class SucursalService {
 
     private final SucursalRepository sucursales;
-    private final PerfilRepository perfiles;
-    private final AltaDeCuentas altas;
     private final Outbox outbox;
 
-    public SucursalService(SucursalRepository sucursales, PerfilRepository perfiles, AltaDeCuentas altas,
-            Outbox outbox) {
+    public SucursalService(SucursalRepository sucursales, Outbox outbox) {
         this.sucursales = sucursales;
-        this.perfiles = perfiles;
-        this.altas = altas;
         this.outbox = outbox;
     }
 
@@ -59,22 +46,14 @@ public class SucursalService {
         return SucursalResponse.de(buscar(id));
     }
 
-    /**
-     * La sucursal y su primer administrador en una sola transacción: si el correo del admin ya
-     * existe, tampoco se crea la sucursal. Así ninguna sucursal queda sin administrador.
-     */
     @PreAuthorize("hasRole('SYS_ADMIN')")
     @Transactional
-    public SucursalCreadaResponse crear(CrearSucursalRequest solicitud) {
+    public SucursalResponse crear(CrearSucursalRequest solicitud) {
         SucursalEntity sucursal = SucursalEntity.nueva(solicitud.sucursal().aDominio(), Instant.now());
         // flush: un código o nombre repetido falla aquí (409), antes de emitir el enlace del admin.
         sucursales.saveAndFlush(sucursal);
         publicar(sucursal);
-        NuevoAdministrador admin = solicitud.administrador();
-        UsuarioEntity administrador = altas.crearPendiente(new NuevaCuenta(admin.correo(), admin.nombreCompleto(),
-                Rol.BRANCH_ADMIN, sucursal, null, null, admin.telefono(), null));
-        return new SucursalCreadaResponse(SucursalResponse.de(sucursal),
-                UsuarioResponse.de(administrador, perfiles.getReferenceById(administrador.getId())));
+        return SucursalResponse.de(sucursal);
     }
 
     @PreAuthorize("hasRole('SYS_ADMIN')")

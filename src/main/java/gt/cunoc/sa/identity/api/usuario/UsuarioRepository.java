@@ -43,16 +43,8 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, UUID>, J
     List<UsuarioEntity> bloquearSysAdminsActivos();
 
     /**
-     * Invariante "cada sucursal tiene un administrador": cuenta también los pendientes,
-     * porque la sucursal nace con su primer admin sin confirmar.
+     * Administradores activos de una sucursal, ordenados para el directorio interno.
      */
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("""
-            select u from UsuarioEntity u
-            where u.rol = gt.cunoc.sa.identity.domain.Rol.BRANCH_ADMIN and u.activo = true and u.sucursal.id = :sucursalId
-            order by u.id""")
-    List<UsuarioEntity> bloquearAdminsActivosDeSucursal(UUID sucursalId);
-
     @Query("""
             select u from UsuarioEntity u
             where u.rol = gt.cunoc.sa.identity.domain.Rol.BRANCH_ADMIN and u.activo = true and u.sucursal.id = :sucursalId

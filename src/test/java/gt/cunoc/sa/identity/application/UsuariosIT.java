@@ -117,15 +117,10 @@ class UsuariosIT {
     }
 
     @Test
-    void unaSucursalConservaAlMenosUnAdministrador() throws Exception {
+    void unaSucursalPuedeQuedarTemporalmenteSinAdministrador() throws Exception {
         SucursalEntity sucursal = escenario.sucursal();
         UsuarioEntity primero = escenario.usuario(Rol.BRANCH_ADMIN, sucursal);
 
-        enviar(patch("/api/usuarios/{id}/estado", primero.getId()), Map.of("activo", false), escenario.admin())
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail").value("La sucursal debe conservar al menos un administrador activo"));
-
-        escenario.usuario(Rol.BRANCH_ADMIN, sucursal);
         enviar(patch("/api/usuarios/{id}/estado", primero.getId()), Map.of("activo", false), escenario.admin())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.activo").value(false));

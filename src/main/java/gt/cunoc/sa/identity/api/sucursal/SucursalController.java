@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 import gt.cunoc.sa.identity.api.sucursal.dto.CrearSucursalRequest;
 import gt.cunoc.sa.identity.api.sucursal.dto.DatosSucursalRequest;
 import gt.cunoc.sa.identity.api.sucursal.dto.EstadoSucursalRequest;
-import gt.cunoc.sa.identity.api.sucursal.dto.SucursalCreadaResponse;
 import gt.cunoc.sa.identity.api.sucursal.dto.SucursalResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -47,12 +46,10 @@ public class SucursalController {
     }
 
     @PostMapping
-    @Operation(summary = "Crea la sucursal y su primer administrador en una transacción",
-            description = "El administrador queda pendiente y recibe el enlace para definir su contraseña. "
-                    + "409 si el código, el nombre o el correo ya existen")
-    public ResponseEntity<SucursalCreadaResponse> crear(@RequestBody @Valid CrearSucursalRequest solicitud) {
-        SucursalCreadaResponse creada = servicio.crear(solicitud);
-        return ResponseEntity.created(URI.create("/api/sucursales/" + creada.sucursal().id())).body(creada);
+    @Operation(summary = "Crea una sucursal sin asignar administrador")
+    public ResponseEntity<SucursalResponse> crear(@RequestBody @Valid CrearSucursalRequest solicitud) {
+        SucursalResponse creada = servicio.crear(solicitud);
+        return ResponseEntity.created(URI.create("/api/sucursales/" + creada.id())).body(creada);
     }
 
     @PutMapping("/{id}")

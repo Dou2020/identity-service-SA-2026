@@ -35,7 +35,7 @@ import jakarta.persistence.criteria.Predicate;
 
 /**
  * Administración de usuarios. Las dos invariantes de identity se deciden aquí, con candados
- * de PostgreSQL: siempre hay un SYS_ADMIN activo y cada sucursal conserva un administrador.
+ * de PostgreSQL: siempre hay un SYS_ADMIN activo.
  */
 @Service
 public class UsuarioService {
@@ -127,9 +127,7 @@ public class UsuarioService {
         }
         SucursalEntity nueva = solicitud.rol().requiereSucursal() ? sucursalActiva(solicitud.sucursalId()) : null;
         boolean sigueSysAdmin = solicitud.rol() == Rol.SYS_ADMIN;
-        boolean sigueAdminDeSuSucursal = solicitud.rol() == Rol.BRANCH_ADMIN
-                && Objects.equals(nueva == null ? null : nueva.getId(), antes.getSucursalId());
-        verificarInvariantes(id, antes, sigueSysAdmin, sigueAdminDeSuSucursal);
+        verificarInvariantes(id, antes, sigueSysAdmin);
 
         UsuarioEntity usuario = cargarSinCambios(id, antes);
         usuario.cambiarRol(solicitud.rol(), nueva, Instant.now());
@@ -155,7 +153,7 @@ public class UsuarioService {
             throw ErrorDeNegocio.conflicto("La cuenta de un chofer se activa o desactiva desde el registro del chofer");
         }
         if (!activo) {
-            verificarInvariantes(id, antes, false, false);
+            verificarInvariantes(id, antes, false);
         }
         UsuarioEntity usuario = cargarSinCambios(id, antes);
         if (usuario.cambiarEstado(activo, Instant.now()) && !activo) {
@@ -173,18 +171,11 @@ public class UsuarioService {
      * ya bloqueado y con su estado actual. Cada operación bloquea un solo conjunto, en orden de
      * id, así que dos operaciones no se interbloquean.
      */
-    private void verificarInvariantes(UUID id, RolYSucursal antes, boolean sigueSysAdmin,
-            boolean sigueAdminDeSuSucursal) {
+    private void verificarInvariantes(UUID id, RolYSucursal antes, boolean sigueSysAdmin) {
         if (antes.getRol() == Rol.SYS_ADMIN && !sigueSysAdmin) {
             List<UsuarioEntity> activos = usuarios.bloquearSysAdminsActivos();
             if (esElUnico(id, activos)) {
                 throw ErrorDeNegocio.conflicto("Debe quedar al menos un administrador del sistema activo");
-            }
-        }
-        if (antes.getRol() == Rol.BRANCH_ADMIN && !sigueAdminDeSuSucursal) {
-            List<UsuarioEntity> activos = usuarios.bloquearAdminsActivosDeSucursal(antes.getSucursalId());
-            if (esElUnico(id, activos)) {
-                throw ErrorDeNegocio.conflicto("La sucursal debe conservar al menos un administrador activo");
             }
         }
     }

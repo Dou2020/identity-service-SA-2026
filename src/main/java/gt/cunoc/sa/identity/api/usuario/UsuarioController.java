@@ -64,7 +64,7 @@ public class UsuarioController {
 
     @PatchMapping("/{id}")
     @Operation(summary = "Cambia el rol o la sucursal (solo entre roles de personal) y cierra sus sesiones",
-            description = "409 si deja el sistema sin SYS_ADMIN activo o a una sucursal sin administrador")
+            description = "409 si deja el sistema sin SYS_ADMIN activo")
     public UsuarioResponse cambiar(@PathVariable UUID id, @RequestBody @Valid CambiarUsuarioRequest solicitud) {
         return servicio.cambiarRol(id, solicitud);
     }

@@ -65,22 +65,14 @@ class SucursalesYTarifasIT {
     }
 
     @Test
-    void laSucursalNaceConSuPrimerAdministradorYEmiteSucursalGuardadaYUsuarioCreado() throws Exception {
-        String correoAdmin = Escenario.correo();
-        JsonNode creada = leer(enviar(post("/api/sucursales"), Map.of("sucursal", sucursal("SM1"),
-                "administrador", Map.of("correo", correoAdmin, "nombreCompleto", "Jefa San Marcos")),
+    void laSucursalSeCreaSinAdministradorYEmiteSucursalGuardada() throws Exception {
+        JsonNode creada = leer(enviar(post("/api/sucursales"), Map.of("sucursal", sucursal("SM1")),
                 escenario.admin()).andExpect(status().isCreated()));
-        String id = creada.at("/sucursal/id").asText();
-        assertThat(creada.at("/administrador/rol").asText()).isEqualTo("BRANCH_ADMIN");
-        assertThat(creada.at("/administrador/sucursalId").asText()).isEqualTo(id);
+        String id = creada.get("id").asText();
 
         Sobre e1 = eventos.esperar(TiposEvento.SUCURSAL_GUARDADA, s -> s.aggregateId().equals(id));
         assertThat(e1.aggregateVersion()).isZero();
         assertThat(e1.payload().get("latitud").decimalValue()).isEqualByComparingTo("14.963889");
-        Sobre e3 = eventos.esperar(TiposEvento.USUARIO_CREADO,
-                s -> s.payload().get("correo").asText().equals(correoAdmin));
-        assertThat(e3.payload().get("sucursalId").asText()).isEqualTo(id);
-
         // Editar sube la versión de E1: los consumidores descartan una réplica vieja.
         Map<String, Object> editada = sucursal("SM1");
         editada.put("nombre", "San Marcos centro " + codigo());
@@ -97,28 +89,24 @@ class SucursalesYTarifasIT {
     }
 
     @Test
-    void siElAdministradorNoSePuedeCrearTampocoSeCreaLaSucursal() throws Exception {
-        String correoTomado = escenario.usuario(Rol.CUSTOMER, null).getCorreo();
+    void laSucursalPuedeCrearseAunqueNoSeAsigneUnAdministrador() throws Exception {
         Map<String, Object> datos = sucursal("HUE");
 
-        enviar(post("/api/sucursales"), Map.of("sucursal", datos,
-                "administrador", Map.of("correo", correoTomado, "nombreCompleto", "Jefe")), escenario.admin())
-                .andExpect(status().isConflict());
+        enviar(post("/api/sucursales"), Map.of("sucursal", datos), escenario.admin())
+                .andExpect(status().isCreated());
 
         assertThat(jdbc.queryForObject("select count(*) from sucursal where codigo = ?", Integer.class,
-                datos.get("codigo"))).isZero();
+                datos.get("codigo"))).isEqualTo(1);
     }
 
     @Test
     void elCodigoDeSucursalEsUnico() throws Exception {
         Map<String, Object> datos = sucursal("REU");
-        enviar(post("/api/sucursales"), Map.of("sucursal", datos, "administrador",
-                Map.of("correo", Escenario.correo(), "nombreCompleto", "Uno")), escenario.admin())
+        enviar(post("/api/sucursales"), Map.of("sucursal", datos), escenario.admin())
                 .andExpect(status().isCreated());
         datos.put("nombre", "Otro nombre " + codigo());
 
-        enviar(post("/api/sucursales"), Map.of("sucursal", datos, "administrador",
-                Map.of("correo", Escenario.correo(), "nombreCompleto", "Dos")), escenario.admin())
+        enviar(post("/api/sucursales"), Map.of("sucursal", datos), escenario.admin())
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("Ya existe una sucursal con ese código"));
     }
@@ -126,8 +114,7 @@ class SucursalesYTarifasIT {
     @Test
     void soloElSysAdminAdministraSucursales() throws Exception {
         UsuarioActual jefe = Escenario.actual(escenario.usuario(Rol.BRANCH_ADMIN, escenario.sucursal()));
-        enviar(post("/api/sucursales"), Map.of("sucursal", sucursal("X"),
-                "administrador", Map.of("correo", Escenario.correo(), "nombreCompleto", "X")), jefe)
+        enviar(post("/api/sucursales"), Map.of("sucursal", sucursal("X")), jefe)
                 .andExpect(status().isForbidden());
     }
 
