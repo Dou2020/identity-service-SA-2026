@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import gt.cunoc.sa.identity.api.interno.dto.AdministradorResponse;
+import gt.cunoc.sa.identity.api.interno.dto.SucursalNombreResponse;
 import gt.cunoc.sa.identity.infrastructure.messaging.ReprocesadorDlq;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
@@ -38,6 +39,12 @@ public class InternoController {
     @Operation(summary = "S7: administradores activos de la sucursal (notification-service)")
     public List<AdministradorResponse> administradores(@PathVariable UUID id) {
         return directorio.administradoresDe(id);
+    }
+
+    @GetMapping("/sucursales/{id}")
+    @Operation(summary = "Nombre de sucursal para notificaciones de otros servicios")
+    public SucursalNombreResponse sucursal(@PathVariable UUID id) {
+        return directorio.sucursal(id);
     }
 
     @PostMapping("/dlq/reprocesar")
