@@ -1,4 +1,4 @@
-package gt.cunoc.sa.identity.api.error;
+package gt.cunoc.sa.identity.exception;
 
 /**
  * Una dependencia de infraestructura (Redis) no respondió. Sale como 503 y la transacción se

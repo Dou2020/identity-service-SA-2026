@@ -16,7 +16,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import gt.cunoc.sa.identity.api.error.ErrorDeNegocio;
 import gt.cunoc.sa.identity.api.perfil.PerfilRepository;
 import gt.cunoc.sa.identity.api.sucursal.SucursalRepository;
 import gt.cunoc.sa.identity.api.usuario.UsuarioRepository.RolYSucursal;
@@ -29,6 +28,7 @@ import gt.cunoc.sa.identity.application.AltaDeCuentas.NuevaCuenta;
 import gt.cunoc.sa.identity.domain.Rol;
 import gt.cunoc.sa.identity.domain.SucursalEntity;
 import gt.cunoc.sa.identity.domain.UsuarioEntity;
+import gt.cunoc.sa.identity.exception.ErrorDeNegocio;
 import gt.cunoc.sa.identity.infrastructure.redis.Sesiones;
 import gt.cunoc.sa.identity.infrastructure.security.UsuarioActual;
 import jakarta.persistence.criteria.Predicate;

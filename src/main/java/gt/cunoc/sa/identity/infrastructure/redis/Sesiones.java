@@ -8,7 +8,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import gt.cunoc.sa.identity.api.error.ServicioNoDisponibleException;
+import gt.cunoc.sa.identity.exception.ServicioNoDisponibleException;
 import gt.cunoc.sa.identity.infrastructure.security.PropiedadesJwt;
 
 /**

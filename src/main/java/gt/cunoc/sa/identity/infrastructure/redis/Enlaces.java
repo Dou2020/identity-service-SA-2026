@@ -18,7 +18,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 
-import gt.cunoc.sa.identity.api.error.ServicioNoDisponibleException;
+import gt.cunoc.sa.identity.exception.ServicioNoDisponibleException;
 
 /**
  * Tokens de un solo uso para definir o recuperar la contraseña (README, "Recuperación y

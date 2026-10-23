@@ -1,4 +1,4 @@
-package gt.cunoc.sa.identity.api.error;
+package gt.cunoc.sa.identity.exception;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

@@ -124,10 +124,9 @@ public class Escenario {
         return "u" + CONTADOR.incrementAndGet() + "-" + ThreadLocalRandom.current().nextInt(1_000_000) + "@prueba.gt";
     }
 
-    /** Un NIT con dígito verificador válido. */
+    /** Un NIT de 8 dígitos al azar. */
     public static String nit() {
-        String cuerpo = Integer.toString(1_000_000 + ThreadLocalRandom.current().nextInt(9_000_000));
-        return cuerpo + Nit.digitoVerificador(cuerpo);
+        return Integer.toString(10_000_000 + ThreadLocalRandom.current().nextInt(90_000_000));
     }
 
     public static String dpi() {

@@ -1,4 +1,4 @@
-package gt.cunoc.sa.identity.api.error;
+package gt.cunoc.sa.identity.exception;
 
 import org.springframework.http.HttpStatus;
 

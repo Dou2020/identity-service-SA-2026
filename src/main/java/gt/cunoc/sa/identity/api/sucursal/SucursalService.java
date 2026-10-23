@@ -8,7 +8,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import gt.cunoc.sa.identity.api.error.ErrorDeNegocio;
 import gt.cunoc.sa.identity.api.perfil.PerfilRepository;
 import gt.cunoc.sa.identity.api.sucursal.dto.CrearSucursalRequest;
 import gt.cunoc.sa.identity.api.sucursal.dto.CrearSucursalRequest.NuevoAdministrador;
@@ -21,6 +20,7 @@ import gt.cunoc.sa.identity.application.AltaDeCuentas.NuevaCuenta;
 import gt.cunoc.sa.identity.domain.Rol;
 import gt.cunoc.sa.identity.domain.SucursalEntity;
 import gt.cunoc.sa.identity.domain.UsuarioEntity;
+import gt.cunoc.sa.identity.exception.ErrorDeNegocio;
 import gt.cunoc.sa.identity.infrastructure.messaging.Outbox;
 import gt.cunoc.sa.identity.infrastructure.messaging.eventos.SucursalGuardada;
 import gt.cunoc.sa.identity.infrastructure.messaging.eventos.TiposEvento;
