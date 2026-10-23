@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import gt.cunoc.sa.identity.api.interno.dto.AdministradorResponse;
+import gt.cunoc.sa.identity.api.interno.dto.SucursalNombreResponse;
 import gt.cunoc.sa.identity.api.sucursal.SucursalRepository;
 import gt.cunoc.sa.identity.api.usuario.UsuarioRepository;
 import gt.cunoc.sa.identity.exception.ErrorDeNegocio;
@@ -34,5 +35,12 @@ public class DirectorioService {
         return usuarios.adminsActivosDeSucursal(sucursalId).stream()
                 .map(u -> new AdministradorResponse(u.getId(), u.getNombreCompleto(), u.getCorreo()))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public SucursalNombreResponse sucursal(UUID id) {
+        var sucursal = sucursales.findById(id)
+                .orElseThrow(() -> ErrorDeNegocio.noEncontrado("No existe esa sucursal"));
+        return new SucursalNombreResponse(sucursal.getNombre());
     }
 }
