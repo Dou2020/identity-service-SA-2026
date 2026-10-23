@@ -94,15 +94,15 @@ identity-service/
     │   │   │   │   └── dto/
     │   │   │   │       ├── TarifaResponse.java              {id, tipo, valor, vigenteDesde, registradoEn}
     │   │   │   │       └── CrearTarifaRequest.java          {tipo, valor, vigenteDesde?} (hoy por defecto)
-    │   │   │   ├── interno/                                 /internal/**: solo red interna, el gateway no las expone
-    │   │   │   │   ├── InternoController.java               S7 (admins de una sucursal) y reprocesar la DLQ
-    │   │   │   │   ├── DirectorioService.java               S7: admins activos de una sucursal
-    │   │   │   │   └── dto/
-    │   │   │   │       └── AdministradorResponse.java       {usuarioId, nombreCompleto, correo}
-    │   │   │   └── error/
-    │   │   │       ├── ManejadorErrores.java                todo error → ProblemDetail; restricción única → 409
-    │   │   │       ├── ErrorDeNegocio.java                  error esperado: 400, 401, 404, 409 o 422 con su detalle
-    │   │   │       └── ServicioNoDisponibleException.java   Redis no respondió → 503
+    │   │   │   └── interno/                                 /internal/**: solo red interna, el gateway no las expone
+    │   │   │       ├── InternoController.java               S7 (admins de una sucursal) y reprocesar la DLQ
+    │   │   │       ├── DirectorioService.java               S7: admins activos de una sucursal
+    │   │   │       └── dto/
+    │   │   │           └── AdministradorResponse.java       {usuarioId, nombreCompleto, correo}
+    │   │   ├── exception/                 errores hacia el cliente
+    │   │   │   ├── ManejadorErrores.java                todo error → ProblemDetail; restricción única → 409
+    │   │   │   ├── ErrorDeNegocio.java                  error esperado: 400, 401, 404, 409 o 422 con su detalle
+    │   │   │   └── ServicioNoDisponibleException.java   Redis no respondió → 503
     │   │   ├── domain/                    entidades JPA y reglas
     │   │   │   ├── UsuarioEntity.java          cuenta pendiente o confirmada; rol, sucursal y chofer
     │   │   │   ├── PerfilEntity.java           NIT, DPI, teléfono y dirección; su versión es la de E4
@@ -110,7 +110,7 @@ identity-service/
     │   │   │   ├── TarifaEntity.java           una versión de tarifa; nunca se actualiza
     │   │   │   ├── Rol.java                    SYS_ADMIN, BRANCH_ADMIN, CASHIER, DRIVER, CUSTOMER
     │   │   │   ├── TipoTarifa.java             DEPRECIACION_KM, ALQUILER_KM, ALQUILER_DIA
-    │   │   │   ├── Nit.java                    normalización y dígito verificador módulo 11
+    │   │   │   ├── Nit.java                    normalización y formato (sin dígito verificador)
     │   │   │   ├── NitInvalidoException.java   → 422
     │   │   │   ├── Calendario.java             "hoy" en America/Guatemala, no en UTC
     │   │   │   └── ConIdAsignado.java          Persistable: persist() y no merge() con UUID asignado
@@ -174,7 +174,7 @@ identity-service/
         │   ├── IdentityApplicationTests.java   migraciones aplicadas y admin inicial
         │   ├── SeguridadTest.java              401, 404, health y X-Correlation-Id
         │   ├── domain/
-        │   │   ├── NitTest.java                normalización, dígito verificador, K y CF
+        │   │   ├── NitTest.java                normalización, formato, K y CF
         │   │   └── PerfilTest.java             la versión sube solo si algo cambió
         │   ├── infrastructure/security/
         │   │   └── EmisorJwtTest.java          claims, firma y secreto corto o no Base64
@@ -255,3 +255,77 @@ respuestas de error son `ProblemDetail`; sin identidad → `401`, rol o sucursal
 |---|---|---|
 | GET | `/actuator/health` | Salud (healthcheck de Compose) |
 | GET | `/v3/api-docs` · `/swagger-ui.html` | OpenAPI y Swagger UI |
+
+## Levantar en desarrollo
+
+Proyecto Compose propio (`docker-compose.yml` de esta carpeta): `identity-db` y el servicio. Los comandos van
+desde `identity-service/`, salvo el de la infra. El [README del proyecto](../README.md#levantar-en-desarrollo)
+lo describe con `stack.sh`, que todavía no existe; aquí va con `docker compose` directo.
+
+1. **Infra**, desde la raíz del proyecto, con su `.env` copiado de `.env.example`. Va primero porque crea la red
+   `transporte`, que este compose declara externa:
+
+   ```bash
+   docker compose up -d --wait                  # Redis, RabbitMQ y la red transporte
+   ```
+
+2. **`.env`** de esta carpeta. `REDIS_PASSWORD`, `RABBITMQ_USER` y `RABBITMQ_PASSWORD` tienen que ser los de
+   `../.env`:
+
+   ```bash
+   cp .env.example .env
+   openssl rand -base64 32                      # → JWT_SECRET, el mismo en ../api-gateway/.env
+   ```
+
+   Completar `JWT_SECRET` (sin él, compose no arranca) y `ADMIN_CORREO` y `ADMIN_CONTRASENA`: con ellos,
+   identity crea el primer `SYS_ADMIN` al arrancar si no hay ninguno. Cambiarlos después no toca esa cuenta.
+
+3. **En Docker**:
+
+   ```bash
+   docker compose up -d --build --wait          # base y servicio; espera a que estén healthy
+   curl localhost:8081/actuator/health          # {"status":"UP"}
+   ```
+
+   Swagger en http://localhost:8081/swagger-ui.html. Para el día a día:
+
+   ```bash
+   docker compose logs -f identity-service
+   docker compose up -d --build identity-service   # después de cambiar el código
+   docker compose down                          # baja todo; la base se conserva en su volumen
+   docker compose down -v                       # además borra la base: Flyway la recrea al arrancar
+   ```
+
+4. **Fuera de Docker**, con Java 21 y Maven. Solo la base va en Docker. El servicio usa el mismo puerto que su
+   contenedor, así que ese contenedor se detiene primero:
+
+   ```bash
+   docker compose stop identity-service         # si estaba arriba
+   docker compose up -d --wait identity-db
+   set -a; . ./.env; set +a; mvn spring-boot:run
+   ```
+
+   La base, Redis y RabbitMQ los encuentra en `localhost`, porque todos se publican en `127.0.0.1`. El usuario de
+   la base sale de `DB_USER` y `DB_PASSWORD`, no de `IDENTITY_DB_USER`. Sus valores por defecto en
+   `application.yml` son los del `.env.example`; si se cambiaron en `.env`, también hay que exportarlos.
+
+5. **Pruebas**, con Docker corriendo. Testcontainers levanta su propio PostgreSQL, Redis y RabbitMQ, así que no
+   usa la infra ni la base de arriba:
+
+   ```bash
+   mvn -q test                                  # todas, incluidas las *IT
+   mvn -q test -Dtest=AutenticacionIT           # una clase
+   ```
+
+6. **Probar**: el login del primer `SYS_ADMIN` ([`POST /api/auth/login`](API.md#post-apiauthlogin)):
+
+   ```bash
+   curl -s -X POST localhost:8081/api/auth/login -H 'content-type: application/json' \
+     -d '{"correo": "admin@transporte.gt", "contrasena": "<la de ADMIN_CONTRASENA>"}'
+   ```
+
+   Devuelve `{token, expiraEn, usuario}`; con otra contraseña, `401` `Correo o contraseña incorrectos`. Las
+   cuentas nuevas nacen sin contraseña, y su enlace viaja en E3, que hoy nadie consume (notification no lee E3
+   ni E17). El token se lee en la cola `transporte.unrouted`, como explica el
+   [README del proyecto](../README.md#levantar-en-desarrollo), y se usa en
+   [`POST /api/auth/contrasena`](API.md#post-apiauthcontrasena).

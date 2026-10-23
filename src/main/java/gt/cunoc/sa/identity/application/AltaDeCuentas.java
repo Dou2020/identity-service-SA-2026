@@ -9,7 +9,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import gt.cunoc.sa.identity.api.error.ErrorDeNegocio;
 import gt.cunoc.sa.identity.api.perfil.PerfilRepository;
 import gt.cunoc.sa.identity.api.usuario.UsuarioRepository;
 import gt.cunoc.sa.identity.domain.Nit;
@@ -17,6 +16,7 @@ import gt.cunoc.sa.identity.domain.PerfilEntity;
 import gt.cunoc.sa.identity.domain.Rol;
 import gt.cunoc.sa.identity.domain.SucursalEntity;
 import gt.cunoc.sa.identity.domain.UsuarioEntity;
+import gt.cunoc.sa.identity.exception.ErrorDeNegocio;
 import gt.cunoc.sa.identity.infrastructure.messaging.Outbox;
 import gt.cunoc.sa.identity.infrastructure.messaging.eventos.TiposEvento;
 import gt.cunoc.sa.identity.infrastructure.messaging.eventos.UsuarioCreado;

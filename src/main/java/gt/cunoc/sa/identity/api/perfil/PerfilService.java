@@ -5,12 +5,12 @@ import java.time.Instant;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import gt.cunoc.sa.identity.api.error.ErrorDeNegocio;
 import gt.cunoc.sa.identity.api.perfil.dto.ActualizarPerfilRequest;
 import gt.cunoc.sa.identity.api.perfil.dto.PerfilResponse;
 import gt.cunoc.sa.identity.domain.Nit;
 import gt.cunoc.sa.identity.domain.PerfilEntity;
 import gt.cunoc.sa.identity.domain.UsuarioEntity;
+import gt.cunoc.sa.identity.exception.ErrorDeNegocio;
 import gt.cunoc.sa.identity.infrastructure.messaging.Outbox;
 import gt.cunoc.sa.identity.infrastructure.messaging.eventos.PerfilGuardado;
 import gt.cunoc.sa.identity.infrastructure.messaging.eventos.TiposEvento;

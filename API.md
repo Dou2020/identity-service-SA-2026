@@ -183,7 +183,7 @@ y `X-RateLimit-Requested-Tokens`. En las rutas públicas cada request gasta 60 d
 | Campo | Regla | Mensaje si no la cumple |
 |---|---|---|
 | `correo` | Formato de correo, hasta 150. Se guarda sin espacios y en minúsculas, y login y recuperación lo normalizan igual, así que no distingue mayúsculas | `debe ser una dirección de correo electrónico con formato correcto` |
-| `nit` | Opcional, hasta 20 al enviarlo. Se le quitan guiones y espacios y se pasa a mayúsculas. Vacío, ausente o `CF` = consumidor final (`CF`). Si no, de 1 a 14 dígitos y un verificador (dígito o `K`) que cuadre con el módulo 11. Ejemplo válido: `1234567-9`, que se guarda como `12345679` | `422 El NIT solo puede tener dígitos y terminar en un dígito o K` · `422 El NIT no es válido: revisa el dígito verificador` |
+| `nit` | Opcional, hasta 20 al enviarlo. Se le quitan guiones y espacios y se pasa a mayúsculas. Vacío, ausente o `CF` = consumidor final (`CF`). Si no, de 1 a 14 dígitos y un último carácter dígito o `K`; el dígito verificador (módulo 11) no se valida. Ejemplo: `1234567-9`, que se guarda como `12345679` | `422 El NIT solo puede tener dígitos y terminar en un dígito o K` |
 | `dpi` | Exactamente 13 dígitos | `debe tener 13 dígitos` |
 | `telefono` | 8 a 15 caracteres entre dígitos, `+`, espacio y `-` | `no es un teléfono válido` |
 | `nombreCompleto` | Hasta 150; se guarda sin espacios al borde | `no debe estar vacío` |
@@ -385,7 +385,7 @@ correo un enlace de 72 h para definirla.
 | `409` | `Ya existe una cuenta con ese correo` | |
 | `409` | `Ese NIT ya pertenece a otra cuenta` | Nunca con `CF` |
 | `409` | `Ya existe una cuenta con ese DPI` | |
-| `422` | los dos mensajes de NIT | Ver [reglas de los campos](#reglas-de-los-campos) |
+| `422` | el mensaje de formato del NIT | Ver [reglas de los campos](#reglas-de-los-campos) |
 | `503` | el genérico | Redis no pudo guardar el enlace; la cuenta no se crea |
 
 **Efectos:**
@@ -549,7 +549,7 @@ perfil, y ninguna puede dejarlo incompleto después.
 | `404` | `No se encontró tu cuenta` | |
 | `409` | `Ese NIT ya pertenece a otra cuenta` | Nunca con `CF` |
 | `409` | `Ya existe una cuenta con ese DPI` | |
-| `422` | los dos mensajes de NIT | |
+| `422` | el mensaje de formato del NIT | |
 
 **Efectos:** si algo cambió, sube la versión del perfil y emite E4 `identity.perfil.guardado` (customer
 actualiza el cliente o lo enlaza por NIT). Un guardado sin cambios no emite nada. No cierra sesiones.
@@ -661,7 +661,7 @@ definir su contraseña y completa su perfil después.
 | `422` | `No existe esa sucursal` | |
 | `422` | `La sucursal está inactiva` | También si un `BRANCH_ADMIN` crea un cajero y su propia sucursal está inactiva |
 | `409` | correo, NIT o DPI repetidos | |
-| `422` | los dos mensajes de NIT | |
+| `422` | el mensaje de formato del NIT | |
 | `503` | el genérico | Redis no pudo guardar el enlace; la cuenta no se crea |
 
 **Efectos:** guarda la cuenta pendiente con su perfil (incompleto si faltan datos) y el enlace de 72 h en

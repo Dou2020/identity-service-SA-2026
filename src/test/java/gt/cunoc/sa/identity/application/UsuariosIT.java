@@ -33,11 +33,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import gt.cunoc.sa.identity.Escenario;
 import gt.cunoc.sa.identity.PruebaDeIntegracion;
-import gt.cunoc.sa.identity.api.error.ErrorDeNegocio;
 import gt.cunoc.sa.identity.api.usuario.UsuarioService;
 import gt.cunoc.sa.identity.domain.Rol;
 import gt.cunoc.sa.identity.domain.SucursalEntity;
 import gt.cunoc.sa.identity.domain.UsuarioEntity;
+import gt.cunoc.sa.identity.exception.ErrorDeNegocio;
 import gt.cunoc.sa.identity.infrastructure.redis.Sesiones;
 import gt.cunoc.sa.identity.infrastructure.security.UsuarioActual;
 

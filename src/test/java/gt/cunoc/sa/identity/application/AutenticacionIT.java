@@ -210,7 +210,7 @@ class AutenticacionIT {
         Map<String, String> base = Map.of("correo", Escenario.correo(), "nombreCompleto", "Ana",
                 "dpi", Escenario.dpi(), "telefono", "55551234", "direccion", "Zona 1");
 
-        publicar("/api/auth/registro", con(base, "nit", "12345678")).andExpect(status().isUnprocessableEntity());
+        publicar("/api/auth/registro", con(base, "nit", "12A45")).andExpect(status().isUnprocessableEntity());
         publicar("/api/auth/registro", con(base, "nit", nit))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("Ese NIT ya pertenece a otra cuenta"));

@@ -6,10 +6,10 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import gt.cunoc.sa.identity.api.error.ErrorDeNegocio;
 import gt.cunoc.sa.identity.api.interno.dto.AdministradorResponse;
 import gt.cunoc.sa.identity.api.sucursal.SucursalRepository;
 import gt.cunoc.sa.identity.api.usuario.UsuarioRepository;
+import gt.cunoc.sa.identity.exception.ErrorDeNegocio;
 
 /**
  * S7, la interfaz DirectorioUsuarios (DIAGRAMAS.md §5): notification pregunta a quién enviar el
