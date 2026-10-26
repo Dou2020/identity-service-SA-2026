@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +33,8 @@ import gt.cunoc.sa.identity.ColaDePrueba;
 import gt.cunoc.sa.identity.Escenario;
 import gt.cunoc.sa.identity.PruebaDeIntegracion;
 import gt.cunoc.sa.identity.domain.Rol;
+import gt.cunoc.sa.identity.domain.SucursalEntity;
+import gt.cunoc.sa.identity.domain.UsuarioEntity;
 import gt.cunoc.sa.identity.infrastructure.messaging.Sobre;
 import gt.cunoc.sa.identity.infrastructure.messaging.eventos.TiposEvento;
 import gt.cunoc.sa.identity.infrastructure.security.UsuarioActual;
@@ -129,6 +132,36 @@ class SucursalesYTarifasIT {
         enviar(post("/api/sucursales"), Map.of("sucursal", sucursal("X"),
                 "administrador", Map.of("correo", Escenario.correo(), "nombreCompleto", "X")), jefe)
                 .andExpect(status().isForbidden());
+    }
+
+    /** Lo que piden otros servicios por la red interna, sin X-User-*: sales (el nombre) y notification (S7). */
+    @Test
+    void lasRutasInternasDanElNombreYLosAdministradoresDeLaSucursal() throws Exception {
+        SucursalEntity sucursal = escenario.sucursal();
+        UsuarioEntity jefe = escenario.usuario(Rol.BRANCH_ADMIN, sucursal);
+        escenario.usuario(Rol.CASHIER, sucursal);   // no es administrador: S7 no lo lista
+
+        JsonNode nombre = leer(mvc.perform(get("/internal/sucursales/{id}", sucursal.getId()))
+                .andExpect(status().isOk()));
+        assertThat(nombre.get("nombre").asText()).isEqualTo(sucursal.getNombre());
+        assertThat(nombre.size()).isEqualTo(1);
+        mvc.perform(get("/internal/sucursales/{id}/administradores", sucursal.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].usuarioId").value(jefe.getId().toString()))
+                .andExpect(jsonPath("$[0].correo").value(jefe.getCorreo()));
+
+        UUID otra = UUID.randomUUID();
+        mvc.perform(get("/internal/sucursales/{id}", otra))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("No existe esa sucursal"));
+        mvc.perform(get("/internal/sucursales/{id}/administradores", otra))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("No existe esa sucursal"));
+        // Registros viejos de sales guardaron el nombre de la sucursal en vez del id.
+        mvc.perform(get("/internal/sucursales/{id}", "Quetzaltenango"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Failed to convert 'id' with value: 'Quetzaltenango'"));
     }
 
     @Test

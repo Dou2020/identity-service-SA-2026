@@ -10,6 +10,7 @@ import gt.cunoc.sa.identity.domain.Rol;
 import gt.cunoc.sa.identity.domain.UsuarioEntity;
 
 /**
+ * @param choferId   solo DRIVER: su id en fleet, como texto (hoy numérico)
  * @param confirmado false mientras no define su contraseña con el enlace
  * @param perfil     solo en el detalle; las listas no lo traen
  */
@@ -20,7 +21,7 @@ public record UsuarioResponse(
         String nombreCompleto,
         Rol rol,
         UUID sucursalId,
-        UUID choferId,
+        String choferId,
         boolean activo,
         boolean confirmado,
         Instant creadoEn,

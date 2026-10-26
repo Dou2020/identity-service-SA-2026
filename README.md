@@ -95,10 +95,11 @@ identity-service/
     │   │   │   │       ├── TarifaResponse.java              {id, tipo, valor, vigenteDesde, registradoEn}
     │   │   │   │       └── CrearTarifaRequest.java          {tipo, valor, vigenteDesde?} (hoy por defecto)
     │   │   │   └── interno/                                 /internal/**: solo red interna, el gateway no las expone
-    │   │   │       ├── InternoController.java               S7 (admins de una sucursal) y reprocesar la DLQ
-    │   │   │       ├── DirectorioService.java               S7: admins activos de una sucursal
+    │   │   │       ├── InternoController.java               S7 (admins de una sucursal), nombre de la sucursal y reprocesar la DLQ
+    │   │   │       ├── DirectorioService.java               S7: admins activos de una sucursal; nombre de una sucursal
     │   │   │       └── dto/
-    │   │   │           └── AdministradorResponse.java       {usuarioId, nombreCompleto, correo}
+    │   │   │           ├── AdministradorResponse.java       {usuarioId, nombreCompleto, correo}
+    │   │   │           └── SucursalNombreResponse.java      {nombre}, para los correos de sales
     │   │   ├── exception/                 errores hacia el cliente
     │   │   │   ├── ManejadorErrores.java                todo error → ProblemDetail; restricción única → 409
     │   │   │   ├── ErrorDeNegocio.java                  error esperado: 400, 401, 404, 409 o 422 con su detalle
@@ -144,7 +145,7 @@ identity-service/
     │   │       │       ├── UsuarioCreado.java              E3 (lleva el token del enlace)
     │   │       │       ├── PerfilGuardado.java             E4
     │   │       │       ├── RecuperacionSolicitada.java     E17 (lleva el token del enlace)
-    │   │       │       └── ChoferGuardado.java             E5, de fleet: los campos que identity lee
+    │   │       │       └── ChoferGuardado.java             E5, de fleet: los campos que identity lee (choferId como texto)
     │   │       ├── redis/
     │   │       │   ├── Sesiones.java                       auth:revocado (logout) y auth:valido-desde (corte)
     │   │       │   ├── Enlaces.java                        auth:restablecer* (Lua, GETDEL) y espera de recuperación
@@ -164,25 +165,26 @@ identity-service/
     │       ├── application.yml                 puerto, base, Redis, RabbitMQ, JWT, enlaces y admin inicial
     │       └── db/migration/                   Flyway
     │           ├── V1__esquema_inicial.sql     tablas, restricciones, outbox e inbox
-    │           └── V2__ajustes_identidad.sql   perfil incompleto, chofer_version, UQ (chofer_id)
+    │           ├── V2__ajustes_identidad.sql   perfil incompleto, chofer_version, UQ (chofer_id)
+    │           └── V3__ids_como_texto.sql      chofer_id a varchar(64): el id de fleet tal cual ("3")
     └── test/
         ├── java/gt/cunoc/sa/identity/
         │   ├── PruebaDeIntegracion.java        meta-anotación: un solo contexto para todas
         │   ├── ContenedoresDePrueba.java       PostgreSQL, Redis y RabbitMQ en Testcontainers
         │   ├── Escenario.java                  datos únicos por prueba y X-User-* puestos a mano
         │   ├── ColaDePrueba.java               cola temporal que ve lo que publica el relay
-        │   ├── IdentityApplicationTests.java   migraciones aplicadas y admin inicial
+        │   ├── IdentityApplicationTests.java   migraciones aplicadas (chofer_id de texto, con su UQ y su CHECK) y admin inicial
         │   ├── SeguridadTest.java              401, 404, health y X-Correlation-Id
         │   ├── domain/
         │   │   ├── NitTest.java                normalización, formato, K y CF
         │   │   └── PerfilTest.java             la versión sube solo si algo cambió
         │   ├── infrastructure/security/
-        │   │   └── EmisorJwtTest.java          claims, firma y secreto corto o no Base64
+        │   │   └── EmisorJwtTest.java          claims (choferId siempre string), firma y secreto corto o no Base64
         │   └── application/                    integración (*IT)
         │       ├── AutenticacionIT.java        registro, enlace, login, recuperación y logout
         │       ├── UsuariosIT.java             invariantes, desactivación concurrente y autorización
-        │       ├── SucursalesYTarifasIT.java   E1, E2, E3 y los 409
-        │       ├── ChoferGuardadoIT.java       E5 duplicado, viejo y a la DLQ
+        │       ├── SucursalesYTarifasIT.java   E1, E2, E3, los 409 y las dos rutas /internal/sucursales
+        │       ├── ChoferGuardadoIT.java       E5 duplicado, viejo, con el id numérico de fleet hasta el JWT, y a la DLQ
         │       ├── PurgaRegistrosIT.java       autorregistros de más de 72 h
         │       └── RedisCaidoIT.java           503 sin Redis (contexto aparte)
         └── resources/config/
@@ -247,6 +249,7 @@ respuestas de error son `ProblemDetail`; sin identidad → `401`, rol o sucursal
 | Método | Ruta | Quién | Qué hace |
 |---|---|---|---|
 | GET | `/internal/sucursales/{id}/administradores` | notification-service (S7) | Nombre y correo de los `BRANCH_ADMIN` activos de la sucursal |
+| GET | `/internal/sucursales/{id}` | sales-service (fuera de S1–S7) | `{nombre}` de la sucursal, para sus correos. `404` si no existe |
 | POST | `/internal/dlq/reprocesar` | operador | Reencola los mensajes de `identity.events.dlq` → `{reprocesados}` |
 
 ### Técnicas
@@ -324,8 +327,30 @@ lo describe con `stack.sh`, que todavía no existe; aquí va con `docker compose
      -d '{"correo": "admin@transporte.gt", "contrasena": "<la de ADMIN_CONTRASENA>"}'
    ```
 
-   Devuelve `{token, expiraEn, usuario}`; con otra contraseña, `401` `Correo o contraseña incorrectos`. Las
-   cuentas nuevas nacen sin contraseña, y su enlace viaja en E3, que hoy nadie consume (notification no lee E3
-   ni E17). El token se lee en la cola `transporte.unrouted`, como explica el
-   [README del proyecto](../README.md#levantar-en-desarrollo), y se usa en
-   [`POST /api/auth/contrasena`](API.md#post-apiauthcontrasena).
+   Devuelve `{token, expiraEn, usuario}`; con otra contraseña, `401` `Correo o contraseña incorrectos`.
+
+   Las cuentas nuevas nacen sin contraseña, y el enlace para definirla llega **por correo**. Viaja en E3 (el
+   de recuperación, en E17). notification los consume desde su cola `notification.events` y manda
+   `${FRONTEND_URL}/establecer-contrasena?token=…`; el frontend abre esa página y llama a
+   [`POST /api/auth/contrasena`](API.md#post-apiauthcontrasena). Para eso notification tiene que estar
+   arriba, con Gmail en su `.env`.
+
+   Para leer el token sin correo, hay que enlazar una cola propia a `identity.usuario.creado` (o a
+   `identity.recuperacion.solicitada`) **antes** del registro. Después ya no se puede recuperar: identity
+   solo guarda en Redis el SHA-256 del token, y el relay vacía el payload de la outbox al publicarla. RabbitMQ 4
+   exige que la cola sea durable (una que no lo es da `400`), así que queda hasta que se borre, y con ella los
+   tokens que vaya juntando: hay que borrarla al terminar.
+
+   ```bash
+   set -a; . ./.env; set +a                     # RABBITMQ_USER y RABBITMQ_PASSWORD
+   U="$RABBITMQ_USER:$RABBITMQ_PASSWORD"; API=http://localhost:15672/api
+   curl -su "$U" -X PUT $API/queues/%2F/tokens-prueba -H 'content-type: application/json' -d '{"durable": true}'
+   curl -su "$U" -X POST $API/bindings/%2F/e/transporte.events/q/tokens-prueba \
+     -H 'content-type: application/json' -d '{"routing_key": "identity.usuario.creado"}'
+   # … POST /api/auth/registro, POST /api/usuarios o POST /api/sucursales …
+   python3 -I ../.claude/skills/documentar-importado/scripts/rabbit.py ver tokens-prueba   # payload.token, sin consumirlo
+   curl -su "$U" -X DELETE $API/queues/%2F/tokens-prueba
+   ```
+
+   Lo mismo se hace desde la consola de RabbitMQ (http://localhost:15672): *Queues → Add a new queue*
+   (durable), *Bindings* desde `transporte.events`, *Get messages* y *Delete*.

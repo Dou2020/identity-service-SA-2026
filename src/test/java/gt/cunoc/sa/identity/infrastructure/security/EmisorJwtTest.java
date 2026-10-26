@@ -53,14 +53,26 @@ class EmisorJwtTest {
 
     @Test
     void elChoferLlevaSuChoferIdYNoLaSucursal() throws Exception {
-        UUID choferId = UUID.randomUUID();
+        String choferId = UUID.randomUUID().toString();
         UsuarioEntity chofer = UsuarioEntity.pendienteDeChofer(choferId, 1, "chofer@correo.gt", "Chofer", sucursal, "h",
                 Instant.now());
 
         JWTClaimsSet claims = SignedJWT.parse(emisor.emitir(chofer).token()).getJWTClaimsSet();
 
-        assertThat(claims.getStringClaim("choferId")).isEqualTo(choferId.toString());
+        assertThat(claims.getStringClaim("choferId")).isEqualTo(choferId);
         assertThat(claims.getClaim("sucursalId")).isNull();
+    }
+
+    /** El id de fleet es numérico: tiene que viajar como string, que es lo que lee el gateway. */
+    @Test
+    void elIdNumericoDeFleetViajaComoTexto() throws Exception {
+        UsuarioEntity chofer = UsuarioEntity.pendienteDeChofer("3", 1, "chofer3@correo.gt", "Chofer", sucursal, "h",
+                Instant.now());
+
+        JWTClaimsSet claims = SignedJWT.parse(emisor.emitir(chofer).token()).getJWTClaimsSet();
+
+        assertThat(claims.getClaim("choferId")).isInstanceOf(String.class).isEqualTo("3");
+        assertThat(claims.getStringClaim("choferId")).isEqualTo("3");
     }
 
     @Test

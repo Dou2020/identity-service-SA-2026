@@ -19,6 +19,9 @@ import jakarta.persistence.Table;
 @Table(name = "usuario")
 public class UsuarioEntity extends ConIdAsignado {
 
+    /** Largo de usuario.chofer_id (V3): lo que fleet mande por encima no entra, y E5 va a la DLQ. */
+    public static final int LARGO_MAXIMO_CHOFER_ID = 64;
+
     @Id
     private UUID id;
 
@@ -42,9 +45,10 @@ public class UsuarioEntity extends ConIdAsignado {
     @JoinColumn(name = "sucursal_id")
     private SucursalEntity sucursal;
 
-    // Referencia por id a fleet.chofer (otra base, sin FK). Solo cuentas DRIVER.
-    @Column(name = "chofer_id", unique = true)
-    private UUID choferId;
+    // Referencia por id a fleet.chofer (otra base, sin FK). Solo cuentas DRIVER. Texto y no UUID:
+    // es el id de fleet tal cual lo publica (hoy numérico, "3"), y identity nunca lo interpreta.
+    @Column(name = "chofer_id", unique = true, length = LARGO_MAXIMO_CHOFER_ID)
+    private String choferId;
 
     // aggregateVersion del último ChoferGuardado (E5) aplicado.
     @Column(name = "chofer_version")
@@ -98,7 +102,7 @@ public class UsuarioEntity extends ConIdAsignado {
     }
 
     /** Cuenta DRIVER de un chofer de fleet (ChoferGuardado, E5). */
-    public static UsuarioEntity pendienteDeChofer(UUID choferId, long choferVersion, String correo,
+    public static UsuarioEntity pendienteDeChofer(String choferId, long choferVersion, String correo,
             String nombreCompleto, SucursalEntity sucursal, String hashInutilizable, Instant ahora) {
         UsuarioEntity usuario = new UsuarioEntity(correo, hashInutilizable, nombreCompleto, Rol.DRIVER, sucursal,
                 ahora);
@@ -215,7 +219,7 @@ public class UsuarioEntity extends ConIdAsignado {
         return sucursal == null ? null : sucursal.getId();
     }
 
-    public UUID getChoferId() {
+    public String getChoferId() {
         return choferId;
     }
 

@@ -114,6 +114,13 @@ public class CuentasDeChofer {
         if (chofer.choferId() == null || chofer.sucursalId() == null || chofer.nombreCompleto() == null) {
             throw new EventoNoProcesableException("ChoferGuardado sin choferId, sucursalId o nombreCompleto");
         }
+        // Se revisa aquí y no se deja a la base: un id vacío sí entraría en la columna (y sería el
+        // chofer de todos los E5 vacíos), y uno largo daría un error de SQL que se reintentaría
+        // cuatro veces antes de llegar a la DLQ, que es adonde va de todos modos.
+        if (chofer.choferId().isBlank() || chofer.choferId().length() > UsuarioEntity.LARGO_MAXIMO_CHOFER_ID) {
+            throw new EventoNoProcesableException("ChoferGuardado con un choferId vacío o de más de "
+                    + UsuarioEntity.LARGO_MAXIMO_CHOFER_ID + " caracteres");
+        }
         return chofer;
     }
 }

@@ -13,7 +13,7 @@ public record PerfilResponse(
         String nombreCompleto,
         Rol rol,
         UUID sucursalId,
-        UUID choferId,
+        String choferId,
         String nit,
         String dpi,
         String telefono,

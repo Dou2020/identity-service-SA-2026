@@ -23,7 +23,7 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, UUID>, J
 
     boolean existsByRol(Rol rol);
 
-    Optional<UsuarioEntity> findByChoferId(UUID choferId);
+    Optional<UsuarioEntity> findByChoferId(String choferId);
 
     /** Rol y sucursal sin cargar la entidad: deciden qué filas bloquear antes de leerla. */
     @Query("select u.rol as rol, u.sucursal.id as sucursalId from UsuarioEntity u where u.id = :id")

@@ -81,8 +81,10 @@ public class EmisorJwt {
         if (usuario.getRol() == Rol.BRANCH_ADMIN || usuario.getRol() == Rol.CASHIER) {
             claims.claim(CLAIM_SUCURSAL, usuario.getSucursalId().toString());
         }
+        // Siempre como string, sea "3" o un UUID: el gateway lo lee con getStringClaim, que
+        // rechazaría un número JSON.
         if (usuario.getRol() == Rol.DRIVER && usuario.getChoferId() != null) {
-            claims.claim(CLAIM_CHOFER, usuario.getChoferId().toString());
+            claims.claim(CLAIM_CHOFER, usuario.getChoferId());
         }
         SignedJWT jwt = new SignedJWT(
                 new JWSHeader.Builder(JWSAlgorithm.HS256).type(JOSEObjectType.JWT).build(), claims.build());

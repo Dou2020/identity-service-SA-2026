@@ -104,7 +104,7 @@ public class Escenario {
                 request.addHeader("X-Sucursal-Id", actual.sucursalId().toString());
             }
             if (actual.choferId() != null) {
-                request.addHeader("X-Chofer-Id", actual.choferId().toString());
+                request.addHeader("X-Chofer-Id", actual.choferId());
             }
             return request;
         };

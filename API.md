@@ -31,7 +31,8 @@ las reglas de negocio, los eventos y Redis, en el [README del proyecto](../READM
 - [Tarifas — `/api/tarifas`](#tarifas--apitarifas): [vigentes](#get-apitarifasvigentes) ·
   [historial](#get-apitarifas) · [nueva versión](#post-apitarifas)
 - [Internas — `/internal`](#internas--internal): [administradores (S7)](#get-internalsucursalesidadministradores) ·
-  [reprocesar DLQ](#post-internaldlqreprocesar)
+  [nombre de la sucursal](#get-internalsucursalesid) · [reprocesar DLQ](#post-internaldlqreprocesar)
+- [Eventos que consume](#eventos-que-consume): [E5 `ChoferGuardado`](#e5-choferguardado)
 - [Técnicas](#técnicas)
 
 ---
@@ -49,7 +50,7 @@ las reglas de negocio, los eventos y Redis, en el [README del proyecto](../READM
 | `X-User-Id` | `sub` | UUID del usuario |
 | `X-User-Roles` | `roles` | el rol (`SYS_ADMIN`, `BRANCH_ADMIN`, `CASHIER`, `DRIVER` o `CUSTOMER`) |
 | `X-Sucursal-Id` | `sucursalId` | solo `BRANCH_ADMIN` y `CASHIER`: su sucursal, que es su alcance |
-| `X-Chofer-Id` | `choferId` | solo `DRIVER` |
+| `X-Chofer-Id` | `choferId` | solo `DRIVER`: su id en fleet-service, como texto (hoy numérico, `3`) |
 
 El token además lleva `jti`, `iat` y `exp` (en segundos). identity no vuelve a validar el JWT (salvo en
 el logout): autoriza con esos encabezados. Por eso, llamando directo al puerto 8081 en desarrollo, se
@@ -66,7 +67,9 @@ request.
 
 ### Formatos
 
-- JSON en UTF-8. Los ids son UUID, salvo el de las tarifas, que es numérico.
+- JSON en UTF-8. Los ids son UUID, salvo el de las tarifas, que es numérico, y los de fleet, trip y sales,
+  que son **texto**: su id tal cual, hoy numérico. En identity solo aparece el `choferId` (p. ej. `"3"`),
+  siempre como string JSON. Los choferes guardados antes con UUID lo conservan.
 - Instantes (`creadoEn`, `expiraEn`, `registradoEn`): ISO-8601 en UTC, p. ej. `2026-10-06T23:44:43.636785Z`.
 - Fechas de negocio (`fecha`, `vigenteDesde`): `AAAA-MM-DD`. "Hoy" es el día en `America/Guatemala`.
 - Montos y coordenadas: número JSON (`14.834999`), no texto.
@@ -207,7 +210,7 @@ Una cuenta. Los campos `null` no se envían.
 | `nombreCompleto` | string | |
 | `rol` | `Rol` | |
 | `sucursalId` | UUID | solo `BRANCH_ADMIN`, `CASHIER` y `DRIVER` |
-| `choferId` | UUID | solo `DRIVER`: su id en fleet-service |
+| `choferId` | string | solo `DRIVER`: su id en fleet-service, como texto (hoy numérico, `"3"`) |
 | `activo` | boolean | `false` = desactivada: no puede iniciar sesión |
 | `confirmado` | boolean | `false` mientras no define su contraseña con el enlace del correo |
 | `creadoEn` | instante | |
@@ -241,7 +244,7 @@ La cuenta y el perfil del usuario que hace la request. Todos los campos se enví
 | `nombreCompleto` | string | |
 | `rol` | `Rol` | |
 | `sucursalId` | UUID o `null` | |
-| `choferId` | UUID o `null` | |
+| `choferId` | string o `null` | solo `DRIVER`: su id en fleet-service, como texto |
 | `nit` | string | `CF` si no tiene |
 | `dpi` | string o `null` | |
 | `telefono` | string o `null` | |
@@ -303,6 +306,7 @@ La cuenta y el perfil del usuario que hace la request. Todos los campos se enví
 | `SucursalCreadaResponse` | `{sucursal: SucursalResponse, administrador: UsuarioResponse con perfil}` |
 | `MensajeResponse` | `{mensaje}`, texto para mostrar tal cual |
 | `AdministradorResponse` | `{usuarioId, nombreCompleto, correo}` |
+| `SucursalNombreResponse` | `{nombre}` |
 
 ---
 
@@ -995,15 +999,35 @@ sucursal, también los que todavía no confirman su cuenta. Vacío si no hay nin
 |---|---|---|
 | `404` | `No existe esa sucursal` | |
 
+### `GET /internal/sucursales/{id}`
+
+El nombre de una sucursal, para los correos de sales-service. No es una de las llamadas S1–S7 del diseño:
+llegó con la saga de cancelación de viaje (PR #1, `feature/implementacion-saga`).
+
+**Llama:** sales-service (`IdentityDirectoryClient`). Pide el origen y el destino del viaje al armar el
+aviso de una compra en línea y el de un boleto cancelado porque se canceló el viaje. Si identity no
+responde o da un error, sales pone "Por confirmar" y manda el aviso igual.
+
+**`200`** — `SucursalNombreResponse`, solo el nombre, de una sucursal activa o inactiva:
+
+```json
+{ "nombre": "Quetzaltenango Centro" }
+```
+
+| Estado | `detail` | Cuándo |
+|---|---|---|
+| `404` | `No existe esa sucursal` | |
+| `400` | `Failed to convert 'id' with value: '<valor>'` | El id no es un UUID, p. ej. un registro viejo de sales con el nombre de la sucursal en vez de su id |
+
 ### `POST /internal/dlq/reprocesar`
 
 Devuelve a la cola `identity.events` los mensajes de `identity.events.dlq`, una vez corregida la causa por
 la que fallaron.
 
-**Llama:** el operador, desde el servidor. Sin body.
+**Llama:** el operador, desde el servidor. Sin body. Desde `identity-service/` (la imagen trae `curl`):
 
 ```bash
-./stack.sh compose identity-service exec identity-service curl -s -X POST localhost:8081/internal/dlq/reprocesar
+docker compose exec identity-service curl -s -X POST localhost:8081/internal/dlq/reprocesar
 ```
 
 **`200`**:
@@ -1019,6 +1043,82 @@ la que fallaron.
 - Cada mensaje sale de la DLQ solo después de que RabbitMQ confirma el reenvío, así que un fallo a la
   mitad no pierde ninguno.
 - Si RabbitMQ no responde, da `500`.
+
+---
+
+## Eventos que consume
+
+Lo que identity publica (E1–E4 y E17, por outbox) está en el
+[catálogo del README del proyecto](../README.md#catálogo-de-eventos), con su
+[sobre](../README.md#sobre-de-cada-evento). Consume un solo evento, desde la cola `identity.events`, enlazada a
+`transporte.events` con `fleet.chofer.guardado`. Su DLQ es `identity.events.dlq`, por `transporte.dlx`.
+
+Cada evento se aplica en una transacción con su inbox (`processed_event`): uno repetido no tiene efecto. Lo
+transitorio (la base o Redis caídos) se reintenta a 1, 2, 4 y 8 s y después va a la DLQ. Lo que nunca va a
+funcionar va directo a la DLQ, sin reintentos; se corrige la causa y se
+[reprocesa la DLQ](#post-internaldlqreprocesar).
+
+### E5 `ChoferGuardado`
+
+`fleet.chofer.guardado`, de fleet-service: crea o actualiza la cuenta `DRIVER` del chofer. fleet todavía no
+lo publica.
+
+En el sobre, `aggregateId` es el `choferId` y `aggregateVersion` es la versión del chofer en fleet, que sube
+con cada cambio.
+
+| Campo del payload | Tipo | Obligatorio | Notas |
+|---|---|---|---|
+| `choferId` | string | sí | El id del chofer en fleet **como texto**, tal cual: hoy su id numérico (`"3"`). De 1 a 64 caracteres. identity no lo interpreta: lo guarda, lo devuelve como `choferId` en `UsuarioResponse` y `PerfilResponse`, y lo pone en el claim `choferId` del JWT, que el gateway reenvía como `X-Chofer-Id` |
+| `sucursalId` | UUID | sí | Una sucursal de identity (la de E1), no su nombre |
+| `nombreCompleto` | string | sí | hasta 150 |
+| `correo` | string o `null` | no | sin correo no hay cuenta; hasta 150, y no distingue mayúsculas |
+| `telefono` | string o `null` | no | va al perfil de la cuenta nueva; hasta 15 |
+| `activo` | boolean | sí | si falta se toma como `false`, que desactiva la cuenta: fleet tiene que mandarlo siempre |
+
+Los demás campos del payload de fleet (`numeroLicencia`, `tipoLicencia`, `fechaVencimiento`…) se ignoran. Un
+`nombreCompleto`, `correo` o `telefono` más largo que su límite falla al guardar: se reintenta y termina en
+la DLQ.
+
+```json
+{
+  "eventId": "6f1c2a9e-3b7d-4c5e-8a1f-2d3e4f5a6b7c",
+  "type": "fleet.chofer.guardado",
+  "schemaVersion": 1,
+  "aggregateId": "3",
+  "aggregateVersion": 2,
+  "occurredAt": "2026-10-27T15:02:11Z",
+  "producer": "fleet-service",
+  "correlationId": "c0ffee00-1234-4abc-9def-001122334455",
+  "payload": {
+    "choferId": "3",
+    "sucursalId": "1b4e28ba-2fa1-41d2-883f-0016d3cca427",
+    "nombreCompleto": "Pedro Pérez",
+    "correo": "pedro.perez@transporte.gt",
+    "telefono": "5512-3456",
+    "activo": true,
+    "numeroLicencia": "A-1234567",
+    "tipoLicencia": "A",
+    "fechaVencimiento": "2027-03-31"
+  }
+}
+```
+
+**Efectos:**
+
+| Caso | Qué hace |
+|---|---|
+| El chofer no tiene cuenta, trae correo y está activo | Crea la cuenta `DRIVER` pendiente en su sucursal, con el perfil incompleto (NIT `CF` y el teléfono), el enlace de bienvenida de 72 h en Redis y E3 `identity.usuario.creado`, con el que notification manda el correo. Al definir su contraseña, su JWT lleva `choferId` |
+| No tiene cuenta, y viene sin correo o inactivo | Nada. El siguiente E5 que traiga correo y `activo: true` la crea |
+| Tiene cuenta y la versión es mayor que la última aplicada | Actualiza el nombre, el correo (si trae uno), la sucursal y el estado. Si cambia de sucursal o se desactiva, cierra **todas** sus sesiones. No emite eventos |
+| La versión es igual o menor que la última aplicada | Se descarta: un E5 viejo que llega tarde no pisa a uno nuevo |
+| El mismo `eventId` otra vez | Se descarta (inbox) |
+
+**Directo a la DLQ, sin reintentos:**
+
+- El sobre o el payload no se pueden leer, o el sobre no trae `eventId`, `type` o `payload`.
+- Falta `choferId`, `sucursalId` o `nombreCompleto`, o el `choferId` viene vacío o con más de 64 caracteres.
+- `sucursalId` no es un UUID o no es una sucursal de identity.
+- El correo ya es de otra cuenta, al crearla o al cambiárselo.
 
 ---
 
