@@ -40,7 +40,9 @@ identity-service/
 ├── pom.xml                                Boot 3.5.16, finalName app; web, JPA, Flyway, Security, Redis, AMQP, springdoc, Nimbus
 ├── Dockerfile                             dos etapas: Maven compila, JRE 21 corre target/app.jar
 ├── docker-compose.yml                     proyecto Compose propio: identity-db (red privada) + el servicio (también en transporte)
-├── .dockerignore                          deja target/, .env y archivos del IDE fuera de la imagen
+├── .dockerignore                          deja target/, los .env (menos .env.example) y archivos del IDE fuera de la imagen
+├── .github/workflows/
+│   └── ci-cd.yml                          pruebas en dev y main; en main, sube el código a la VM por SSH y la compila y levanta allá (README raíz, "Pipeline de identity, customer y finance")
 ├── .gitignore                             lo que no se versiona: target/, .env (no .env.example), logs, IDE y SO
 ├── .env.example                           variables de su compose (su base, Redis, RabbitMQ, JWT_SECRET y el primer SYS_ADMIN); se copia a .env, que no se versiona
 ├── README.md                              estructura y endpoints (este archivo)

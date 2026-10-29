@@ -1060,8 +1060,9 @@ funcionar va directo a la DLQ, sin reintentos; se corrige la causa y se
 
 ### E5 `ChoferGuardado`
 
-`fleet.chofer.guardado`, de fleet-service: crea o actualiza la cuenta `DRIVER` del chofer. fleet todavía no
-lo publica.
+`fleet.chofer.guardado`, de fleet-service: crea o actualiza la cuenta `DRIVER` del chofer. fleet lo publica por
+su outbox desde el 2026-10-28, al dar de alta, editar, activar o desactivar un chofer (notification también lo
+consume, para los recordatorios de licencia).
 
 En el sobre, `aggregateId` es el `choferId` y `aggregateVersion` es la versión del chofer en fleet, que sube
 con cada cambio.
